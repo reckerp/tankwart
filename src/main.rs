@@ -4,6 +4,7 @@ mod threshold;
 
 use dotenvy::dotenv;
 use ntfy::Ntfy;
+use std::collections::HashMap;
 use std::env;
 use tankerkoenig::{FuelPrice, Tankerkoenig};
 use threshold::Threshold;
@@ -25,6 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut interval = interval(Duration::from_secs(300)); // 5 minutes
     let client = Tankerkoenig::new(api_key)?;
     let ntfy = Ntfy::new(ntfy_topic);
+    let mut last_prices: HashMap<String, HashMap<String, f64>> = HashMap::new();
 
     loop {
         interval.tick().await;
@@ -35,14 +37,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        for (_, station) in response.prices {
+        for (station_id, station) in response.prices {
             if station.status != "open" {
                 println!("Station is closed!");
                 continue;
             }
-            process_fuel(&ntfy, "Diesel", station.diesel, threshold.diesel).await?;
-            process_fuel(&ntfy, "E5", station.e5, threshold.e5).await?;
-            process_fuel(&ntfy, "E10", station.e10, threshold.e10).await?;
+
+            last_prices.entry(station_id.clone()).or_default();
+
+            process_fuel(
+                &ntfy,
+                "Diesel",
+                station.diesel,
+                threshold.diesel,
+                station_id.as_str(),
+                "diesel",
+                &mut last_prices,
+            )
+            .await?;
+            process_fuel(
+                &ntfy,
+                "E5",
+                station.e5,
+                threshold.e5,
+                station_id.as_str(),
+                "e5",
+                &mut last_prices,
+            )
+            .await?;
+            process_fuel(
+                &ntfy,
+                "E10",
+                station.e10,
+                threshold.e10,
+                station_id.as_str(),
+                "e10",
+                &mut last_prices,
+            )
+            .await?;
         }
     }
 }
@@ -52,17 +84,33 @@ async fn process_fuel(
     fuel_name: &str,
     fuel_price: FuelPrice,
     limit: Option<f64>,
+    station_id: &str,
+    fuel_key: &str,
+    last_prices: &mut HashMap<String, HashMap<String, f64>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match fuel_price {
         FuelPrice::Available(price) => {
             println!("{}: {}", fuel_name, price);
 
             if let Some(limit_val) = limit {
-                if price <= limit_val {
-                    let msg = format!("{} price is low! Current price: {:.3}", fuel_name, price);
+                let should_notify = if let Some(last_price) =
+                    last_prices.get(station_id).and_then(|m| m.get(fuel_key))
+                {
+                    price <= limit_val && price < *last_price
+                } else {
+                    price <= limit_val
+                };
+
+                if should_notify {
+                    let msg = format!("{} price dropped! Current price: {:.3}", fuel_name, price);
                     ntfy.send(msg).await?;
                 }
             }
+
+            last_prices
+                .entry(station_id.to_string())
+                .or_default()
+                .insert(fuel_key.to_string(), price);
         }
         FuelPrice::NotAvailable() => {
             println!("{} not available", fuel_name);
