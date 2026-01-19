@@ -1,8 +1,8 @@
-mod client;
+mod tankerkoenig;
 
-use client::{FuelPrice, Tankerkoenig};
 use dotenvy::dotenv;
 use std::env;
+use tankerkoenig::{FuelPrice, Tankerkoenig};
 use tokio::time::{Duration, interval};
 
 #[tokio::main]
