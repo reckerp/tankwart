@@ -52,7 +52,7 @@ impl Tankerkoenig {
         })
     }
 
-    pub async fn get_prices(&self, ids: Vec<String>) -> Result<PriceResponse, ApiError> {
+    pub async fn get_prices(&self, ids: &Vec<String>) -> Result<PriceResponse, ApiError> {
         let mut url = self.base_url.join("prices.php")?;
         url.query_pairs_mut()
             .append_pair("ids", &ids.join(","))
