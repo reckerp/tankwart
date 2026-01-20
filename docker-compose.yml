@@ -1,0 +1,14 @@
+services:
+  tankwart:
+    image: ghcr.io/reckerp/tankwart:latest
+    container_name: tankwart
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TANKERKOENIG_API_KEY=${TANKERKOENIG_API_KEY}
+      - NTFY_TOPIC=${NTFY_TOPIC}
+      - STATION_IDS=${STATION_IDS}
+      - THRESHOLD_E5=${THRESHOLD_E5:-}
+      - THRESHOLD_E10=${THRESHOLD_E10:-}
+      - THRESHOLD_DIESEL=${THRESHOLD_DIESEL:-}
