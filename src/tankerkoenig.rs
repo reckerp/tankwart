@@ -16,7 +16,7 @@ pub enum ApiError {
     Status(StatusCode),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(untagged)]
 pub enum FuelPrice {
     Available(f64),
@@ -26,9 +26,12 @@ pub enum FuelPrice {
 #[derive(Debug, Deserialize)]
 pub struct StationPrice {
     pub status: String,
-    pub e5: FuelPrice,
-    pub e10: FuelPrice,
-    pub diesel: FuelPrice,
+    #[serde(default)]
+    pub e5: Option<FuelPrice>,
+    #[serde(default)]
+    pub e10: Option<FuelPrice>,
+    #[serde(default)]
+    pub diesel: Option<FuelPrice>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,7 +55,7 @@ impl Tankerkoenig {
         })
     }
 
-    pub async fn get_prices(&self, ids: &Vec<String>) -> Result<PriceResponse, ApiError> {
+    pub async fn get_prices(&self, ids: &[String]) -> Result<PriceResponse, ApiError> {
         let mut url = self.base_url.join("prices.php")?;
         url.query_pairs_mut()
             .append_pair("ids", &ids.join(","))

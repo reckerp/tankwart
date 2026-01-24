@@ -6,17 +6,11 @@ WORKDIR /app
 # Copy manifests
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy main.rs to cache dependencies
-RUN mkdir src && \
-  echo "fn main() {}" > src/main.rs && \
-  cargo build --release && \
-  rm -rf src
-
 # Copy source code
 COPY src ./src
 
 # Build the application
-RUN cargo build --release
+RUN cargo clean && cargo build --release
 
 # Runtime stage
 FROM debian:trixie-slim
